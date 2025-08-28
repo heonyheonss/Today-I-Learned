@@ -1,3 +1,33 @@
+# ==================================================
+# Custom Rules for Data Analysis Projects
+# ==================================================
+
+# Data files
+*.csv
+*.json
+*.parquet
+data/
+
+# Trained models
+*.pkl
+*.joblib
+*.h5
+*.pth
+models/
+
+# Outputs & Reports
+outputs/
+results/
+*.png
+
+# Custom secrets (if not using .env)
+secrets.ini
+config.yaml
+
+# ==================================================
+# GitHub's Default Python Template Below
+# ==================================================
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
