@@ -1,9 +1,9 @@
-#Kernel Density Estimation, KDE
+# Kernel Density Estimation, KDE
 ## what i understood
 replace a datapoint to a gaussian distribution,
 and then summing pointwise all of the distributions
 
-##(1) sklearn : from sklearn.neighbors import KernelDensity
+## (1) sklearn : from sklearn.neighbors import KernelDensity
     bandwidth = 0.35  # bandwidth could be controlled by distribution
     kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth).fit(y)
     
