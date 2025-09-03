@@ -1,0 +1,47 @@
+data:
+  train_path: "data/train.csv"
+  final_path: "data/cleaned_polymer_data.csv"
+  supplement_path:
+    - data/train_supplement/dataset1.csv
+    - data/train_supplement/dataset2.csv
+    - data/train_supplement/dataset3.csv
+    - data/train_supplement/dataset4.csv
+  smiles_column: "SMILES"
+  id_column: "id"
+  target_column:
+    - Tg
+    - FFV
+    - Tc
+    - Density
+    - Rg
+
+split:
+  test_size: 0.15
+  val_size: 0.15
+  n_bins: 10
+  random_seed: 42
+  group_column: "PID"
+
+model:
+  type: "RandomForest"
+  n_estimators: 300
+  max_depth: 12
+  min_samples_leaf: 2
+  random_state: 42
+
+gnn:
+  type: "GATv2"
+  hidden_channels: 8
+  heads: 4
+  layers: 3
+  pooling: "mean_max"
+  lr: 0.05
+  weight_decay: 0.01
+  epochs: 500
+  batch_size: 64
+  optimizer: "Adagrad"
+
+experiment:
+  device: "cuda"  # "cuda" 가능
+  log_dir: "outputs/logs"
+  save_dir: "outputs/models"
