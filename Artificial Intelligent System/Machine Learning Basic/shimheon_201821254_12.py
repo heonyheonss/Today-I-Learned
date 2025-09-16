@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sun Oct 29 00:10:32 2023
+Created on Mon Oct 30 14:55:07 2023
 
-@author: USER
+@author: heon
 """
-
 import os
+import datetime
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -19,28 +19,22 @@ from matplotlib import pyplot as plt
 torch.manual_seed(1)
 
 # %% Training Parameters
-EPOCH = 3
+EPOCH = 10
 BATCH = 100
-num_models = 2
 LEARNINGRATE = 0.001
 
 # %% MNIST Dataset
-data_augmentation = transforms.Compose([
-    transforms.RandomRotation(degrees = (-15, 15), interpolation=transforms.InterpolationMode.BILINEAR),
-    transforms.RandomResizedCrop(size=(28, 28), scale=(0.6, 1.0)),
-    transforms.ToTensor()
-    ])
 
-train_set = datasets.MNIST(
-    root = './data/MNIST',
+train_set = datasets.CIFAR10(
+    root = './data/CIFAR10',
     train = True,
-    transform = data_augmentation,
+    transform = transforms.ToTensor(), # 데이터를 0에서 255까지 있는 값을 0에서 1사이 값으로 변환
     download = True
 )
-test_set = datasets.MNIST(
-    root = './data/MNIST',
+test_set = datasets.CIFAR10(
+    root = './data/CIFAR10',
     train = False,
-    transform = data_augmentation,
+    transform = transforms.ToTensor(), # 데이터를 0에서 255까지 있는 값을 0에서 1사이 값으로 변환
     download = True
 )
 
@@ -48,22 +42,25 @@ print('number of training data : ', len(train_set))
 print('number of test data : ', len(test_set))
 print(train_set[0][0].size())
 
+classes = train_set.classes
+print("classes :", classes)
+num_classes = len(classes)
+print("num_classes :", num_classes)
+
+# %% data load
 train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=BATCH, shuffle=True)
 test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=BATCH, shuffle=True)
 
 original_images, labels = next(iter(train_loader))
 print("original_images.shape :", original_images.detach().numpy().shape)
-
-classes = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
-
 # %% Plot some sample images
 plt.figure(figsize=(10,4))
 for i in range(10):
     plt.subplot(2, 5, i+1)
-    plt.imshow(train_set[i][0].squeeze().numpy())
+    img = train_set[i][0].numpy().transpose(1,2,0)
+    plt.imshow(img)
     plt.axis('off')
-    plt.title(i)
-
+    plt.title(classes[train_set[i][1]])
 plt.show()
 
 # %% Model define - class
@@ -91,34 +88,17 @@ class DenseBNRelu(nn.Module):
         x = F.relu(x)
         return x
     
-class ResidualBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1):
-        super(ResidualBlock, self).__init__()
-        self.conv1 = ConvBNRelu(in_channels, out_channels, kernel_size=kernel_size, padding=padding)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
-        self.batchnorm = nn.BatchNorm2d(out_channels)
-    
-    def forward(self, inputs):
-        x = self.conv1(inputs)
-        x = self.conv2(x)
-        x = self.batchnorm(x)
-        x = x + inputs
-        x = F.relu(x)
-        return x
-
-# %% class - CNNModel
-
-class CNNModel(nn.Module):
+class CIFAR10Model(nn.Module):
     def __init__(self):
-        super(CNNModel, self).__init__()
-        self.conv1 = ConvBNRelu(1, 32, kernel_size=3, padding=1)
+        super(CIFAR10Model, self).__init__()
+        self.conv1 = ConvBNRelu(3, 32, kernel_size=3, padding=1)
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
         self.conv2 = ConvBNRelu(32, 64, kernel_size=3, padding=1)
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
         self.conv3 = ConvBNRelu(64, 128, kernel_size=3, padding=1)
         self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
         self.pool3_flat = nn.Flatten()
-        self.dense4 = DenseBNRelu(128* 3 * 3, 256)
+        self.dense4 = DenseBNRelu(128 * 4 * 4, 256)
         self.drop4 = nn.Dropout(p=0.4)
         self.dense5 = nn.Linear(256, 10)
         
@@ -134,111 +114,63 @@ class CNNModel(nn.Module):
         net = self.drop4(net)
         net = self.dense5(net)
         return net
-# %% class - ResNet
 
-class ResNet(nn.Module):
-    def __init__(self):
-        super(ResNet, self).__init__()
-        self.conv1_1 = ConvBNRelu(1, 32, kernel_size=3, padding=1)
-        self.conv1_2 = ResidualBlock(32, 32)
-        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
-        self.conv2_1 = ConvBNRelu(32, 64, kernel_size=3, padding=1)
-        self.conv2_2 = ResidualBlock(64, 64)
-        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
-        self.conv3_1 = ConvBNRelu(64, 128, kernel_size=3, padding=1)
-        self.conv3_2 = ResidualBlock(128, 128)
-        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
-        self.pool3_flat = nn.Flatten()
-        self.dense4 = DenseBNRelu(128* 3 * 3, 256)
-        self.drop4 = nn.Dropout(p=0.4)
-        self.dense5 = nn.Linear(256, 10)
-        
-    def forward(self, x):
-        net = self.conv1_1(x)
-        net = self.conv1_2(net)
-        net = self.pool1(net)
-        net = self.conv2_1(net)
-        net = self.conv2_2(net)
-        net = self.pool2(net)
-        net = self.conv3_1(net)
-        net = self.conv3_2(net)
-        net = self.pool3(net)
-        net = self.pool3_flat(net)
-        net = self.dense4(net)
-        net = self.drop4(net)
-        net = self.dense5(net)
-        return net
-
-# %% create model
-models = []
-
-model = CNNModel()
+model = CIFAR10Model()
 print(model)
-models.append(model)
-
-model = ResNet()
-print(model)
-models.append(model)
 
 # %% Optimizer
-optimizers = [optim.Adam(model.parameters(), lr=LEARNINGRATE) for model in models]
+optimizer = optim.Adam(model.parameters(), lr=LEARNINGRATE)
 lr_decay = 0.9
-lr_schedulers = [optim.lr_scheduler.StepLR(optimizer, step_size=len(train_set)/BATCH*num_models*5, gamma=lr_decay) for optimizer in optimizers]
+lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=len(train_set)/BATCH*5, gamma=lr_decay)
 
 # loss
 criterion = nn.CrossEntropyLoss()
 
 # Train function
-def train(model, optimizers,images, labels):
-    sum_loss = 0
-    for model, optimizer in zip(models, optimizers):
-        pred = model(images)
-        loss = criterion(pred, labels)
+def train(model, images, labels):
+    pred = model(images)
+    loss = criterion(pred, labels)
     
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        
-        sum_loss += loss
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
     
-    return sum_loss / num_models
+    return loss
 
 # Function to calculate accuracy
-def accuracy_fn(models, images, labels):
-    logits = models[0](images)
-    for i in range(1, num_models):
-        logits += models[i](images)
-        
-    pred = torch.argmax(F.softmax(logits, dim=1), 1)
-    correct_prediction = (pred == labels)
+def accuracy_fn(Y, out):
+    pred = torch.argmax(F.softmax(out, dim=1), 1)
+    correct_prediction = (pred == Y)
     accuracy = correct_prediction.float().mean()
     return accuracy
 
 # %% Checkpoints
+
 checkpoint_dir = 'checkpoints'
-model_dir = 'batchnorm_model'
+model_dir = 'CIFAR10_model'
 checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 if not os.path.exists(checkpoint_dir):
     os.makedirs(checkpoint_dir)
 
 # %% Load
-def load(model, opimizer, checkpoint_file):
+def load(models, opimizers, checkpoint_file):
     print("[*] Reading checkpoints...")
     if os.path.exists(checkpoint_file):
         checkpoint = torch.load(checkpoint_file)
         model.load_state_dict(checkpoint['model_state_dict'])
-        optimizers.load_state_dict(checkpoint['optimizer_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         epoch = checkpoint['epoch']
         print("[*] Success to read checkpoint at epoch {}".format(epoch))
         return True, epoch
     else:
         print("[*] Failed to find a checkpoint")
         return False, 0
-    
+
 # %% Training
 fstr = "\rEpch: {}, Loss: {:.6f}, Train accuracy: {:.4f}, Test accuracy: {:.4f}"
 
 model.train()
+start = datetime.datetime.now()
 for epoch in range(EPOCH):
     avg_loss = 0.
     avg_train_acc = 0.
@@ -246,23 +178,22 @@ for epoch in range(EPOCH):
     train_step = 0
     test_step = 0
     for images, labels in train_loader:
-        avg_loss += train(models, optimizers,images, labels)
-        print('\r{:6.2f}'.format((train_step)/len(train_loader)*100), end='')
-        acc = accuracy_fn(models, images, labels)
+        avg_loss += train(model, images, labels)
+        print('\r{:6.2f}'.format((train_step)/len(train_loader) * 100), end='')
+        acc = accuracy_fn(labels, model(images))
         avg_train_acc += acc
         train_step += 1
     avg_loss = avg_loss / train_step
     avg_train_acc = avg_train_acc / train_step
     
-    for lr_scheduler in lr_schedulers:
-        lr_scheduler.step()
+    lr_scheduler.step()
     
     with torch.no_grad():
         for images, labels in test_loader:
-            acc = accuracy_fn(models, images, labels)
+            acc = accuracy_fn(labels, model(images))
             avg_test_acc += acc
             test_step += 1
-            print('\r{:6.2f}'.format((test_step)/len(test_loader)*100), end='')
+            print('\r{:6.2f}'.format((test_step)/len(test_loader) * 100), end='')
         avg_test_acc = avg_test_acc / test_step
         
     print(fstr.format(epoch+1, avg_loss, avg_train_acc, avg_test_acc))
@@ -271,14 +202,17 @@ for epoch in range(EPOCH):
     checkpoint = {
         'epoch':epoch,
         'model_state_dict':model.state_dict(),
-        'optimizer_state_dict':optimizers.state_dict(),
+        'optimizer_state_dict':optimizer.state_dict(),
     }
     torch.save(checkpoint,checkpoint_file)
-
+    
+end = datetime.datetime.now()
 print('Learning Finished!')
+time = end-start
+print("Learging Time: ",time)
 
 # %% Load checkpoints
-could_load, checkpoint_counter = load(models, optimizers, checkpoint_file)
+could_load, checkpoint_counter = load(model, optimizer, checkpoint_file)
 
 if could_load:
     start_epoch = (int)(checkpoint_counter)+1
@@ -287,8 +221,8 @@ else:
     start_epoch = 0
     print("[!] Load failed...")
     
-EPOCH = 15
-
+EPOCH = 13
+start = datetime.datetime.now()
 for epoch in range(start_epoch, EPOCH):
     avg_loss = 0.
     avg_train_acc = 0.
@@ -296,23 +230,22 @@ for epoch in range(start_epoch, EPOCH):
     train_step = 0
     test_step = 0
     for images, labels in train_loader:
-        avg_loss += train(models, optimizers,images, labels)
-        print('\r{:6.2f}'.format((train_step)/len(train_loader)*100), end='')
-        acc = accuracy_fn(models, images, labels)
+        avg_loss += train(model, images, labels)
+        print('\r{:6.2f}'.format((train_step)/len(train_loader) * 100), end='')
+        acc = accuracy_fn(labels, model(images))
         avg_train_acc += acc
         train_step += 1
     avg_loss = avg_loss / train_step
     avg_train_acc = avg_train_acc / train_step
     
-    for lr_scheduler in lr_schedulers:
-        lr_scheduler.step()
+    lr_scheduler.step()
     
     with torch.no_grad():
         for images, labels in test_loader:
-            acc = accuracy_fn(models, images, labels)
+            acc = accuracy_fn(labels, model(images))
             avg_test_acc += acc
             test_step += 1
-            print('\r{:6.2f}'.format((test_step)/len(test_loader)*100), end='')
+            print('\r{:6.2f}'.format((test_step)/len(test_loader) * 100), end='')
         avg_test_acc = avg_test_acc / test_step
         
     print(fstr.format(epoch+1, avg_loss, avg_train_acc, avg_test_acc))
@@ -321,8 +254,26 @@ for epoch in range(start_epoch, EPOCH):
     checkpoint = {
         'epoch':epoch,
         'model_state_dict':model.state_dict(),
-        'optimizer_state_dict':optimizers.state_dict(),
+        'optimizer_state_dict':optimizer.state_dict(),
     }
     torch.save(checkpoint,checkpoint_file)
-# %%
+    
+end = datetime.datetime.now()
+print('Learning Finished!')
+time = end-start
+print("Learging Time: ",time)
+
+# %% Validation
+original_images, labels = next(iter(train_loader))
+print("original_images.shape :", original_images.detach().numpy().shape)
+out = F.softmax(model(original_images), dim=1)
+preds = torch.argmax(out.data, 1)
+
+for i in range(10):
+    plt.subplot(2, 5, i+1)
+    img = original_images[i].numpy().transpose(1,2,0)
+    plt.imshow(img)
+    plt.axis('off')
+    plt.title(f"{classes[preds[i]]}\n{classes[labels[i]]}")
+plt.show()
 print("201821254 심헌")

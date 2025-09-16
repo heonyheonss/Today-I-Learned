@@ -84,9 +84,9 @@ lr_decay = 0.99
 optimizer = optim.Adam(model.parameters(), lr=lr_init)
 lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=lr_decay)
 
-fstr = "Iter: {:5}, loss_train: {:1.4f}, loss_test: {:1.4f}, lr: {:1.4f}"
+fstr = "Iter: {:5}, loss_train: {:1,4f}, loss_test: {1.4f}, lr: {:1.4f}"
 
-for steps in range(EPOCHS):
+for step in range(EPOCHS):
     for x, labels in dataloader:
         pred = model(x_train)
         optimizer.zero_grad()
@@ -94,11 +94,11 @@ for steps in range(EPOCHS):
         loss.backward()
         optimizer.step()
         
-    if (steps + 1) % 500 == 0:
+    if (step + 1) % 500 == 0:
         train_loss = loss_wo_reg_fn(model(x_train), y_train)
         test_loss = loss_wo_reg_fn(model(x_test), y_test)
         current_lr = optimizer.param_groups[0]['lr']
-        print(fstr.format(steps + 1, train_loss, test_loss, current_lr))
+        print(fstr.format(step + 1, train_loss, test_loss, current_lr))
         
     lr_scheduler.step()
 
@@ -127,9 +127,9 @@ lr_decay = 0.98
 optimizer = optim.Adam(model.parameters(), lr=lr_init)
 lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1000, gamma=lr_decay)
 
-fstr = "Iter: {:5}, loss_train: {:1.4f}, loss_test: {:1.4f}, lr: {:1.4f}"
+fstr = "Iter: {:5}, loss_train: {:1,4f}, loss_test: {1.4f}, lr: {:1.4f}"
 
-for steps in range(EPOCHS):
+for step in range(EPOCHS):
     for x, labels in dataloader:
         pred = model(x_train)
         optimizer.zero_grad()
@@ -137,11 +137,11 @@ for steps in range(EPOCHS):
         loss.backward()
         optimizer.step()
         
-    if (steps + 1) % 500 == 0:
+    if (step + 1) % 500 == 0:
         train_loss = loss_fn(model(x_train), y_train, model)
         test_loss = loss_fn(model(x_test), y_test, model)
         current_lr = optimizer.param_groups[0]['lr']
-        print(fstr.format(steps + 1, train_loss, test_loss, current_lr))
+        print(fstr.format(step + 1, train_loss, test_loss, current_lr))
         
     lr_scheduler.step()
 
@@ -158,4 +158,3 @@ plt.title('test')
 plt.legend(['label', 'pred'])
 plt.grid()
 plt.show()
-print("201821254 심헌")

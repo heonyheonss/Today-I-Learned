@@ -29,6 +29,9 @@ n_data = len(yx)
 x_train = torch.tensor(yx[:-int(n_data/5), 1:])
 y_train = torch.tensor(yx[:-int(n_data/5), 0])
 
+print(y_train)
+
+# %%
 x_test = torch.tensor(yx[-int(n_data/5):, 1:])
 y_test = torch.tensor(yx[-int(n_data/5):, 0])
 

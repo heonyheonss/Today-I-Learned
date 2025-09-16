@@ -76,7 +76,7 @@ print('--Multivariable linear regression')
 
 W = torch.randn(3,1,requires_grad=True)
 b = torch.randn(1,requires_grad=True)
-optimizer = optim.Adam([W, b], lr=0.01)
+optimizer = optim.SGD([W, b], lr=0.01)
 
 for i in range(10000):
     # Forward pass
